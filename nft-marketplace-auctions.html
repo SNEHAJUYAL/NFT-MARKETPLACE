@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>NFT Marketplace with Auctions</title>
+<style>
+  /* Reset and base */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    background: linear-gradient(135deg, #1f1c2c, #928dab);
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    max-width: 350px;
+    margin-left: auto;
+    margin-right: auto;
+    padding: 10px 15px;
+  }
+  h1, h2, h3 {
+    font-weight: 700;
+    margin: 10px 0 20px 0;
+    color: #fff;
+    text-align: center;
+    text-shadow: 1px 1px 6px #000a;
+  }
+  button {
+    background: #6e57e0;
+    border: none;
+    color: white;
+    font-weight: 600;
+    padding: 8px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+    font-size: 1rem;
+    box-shadow: 0 3px 7px #523ed9aa;
+  }
+  button:hover:not(:disabled) {
+    background: #9b7df2;
+  }
+  button:disabled {
+    background: #55555599;
+    cursor: not-allowed;
+  }
+  input, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 1rem;
+    margin-bottom: 10px;
+    font-family: 'Montserrat', sans-serif;
+  }
+  textarea {
+    resize: vertical;
+  }
+  label {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: block;
+    color: #ddd;
+  }
+  header {
+    margin-bottom: 15px;
+  }
+  .section {
+    margin-bottom: 20px;
+    background: rgba(30, 26, 52, 0.7);
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 0 20px #231b49aa;
+  }
+  .nft-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(140px,1fr));
+    gap: 15px;
+  }
+  .nft-card {
+    background: #341f9b;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px #3a2c93dd;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+    position: relative;
+  }
+  .nft-card img {
+    width: 100%;
+    border-radius: 15px;
+    margin-bottom: 8px;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    box-shadow: 0 0 12px #6e57e0cc;
+  }
+  .nft-card h3 {
+    font-size: 1rem;
+    margin: 0 0 4px 0;
+    text-align: center;
+  }
+  .nft-card p {
+    font-size: 0.75rem;
+    margin: 0 0 8px 0;
+    text-align: center;
+    min-height: 36px;
+  }
+  .badge {
+    background: #f39c12;
+    color: #220a00;
+    font-weight: 700;
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 15px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    user-select: none;
+    box-shadow: 0 0 8px #f39c1211;
+  }
+  .auction-timer {
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #ffd54f;
+    text-align: center;
+    user-select: none;
+  }
+  .price {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #a5d6ff;
+    margin-bottom: 8px;
+    text-align: center;
+    text-shadow: 0 0 5px #74a6ffbb;
+  }
+  .bid-section {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
+  .bid-section input[type="number"] {
+    max-width: 70px;
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 6px 10px;
+    background: #fff;
+    color: #333;
+  }
+  .footer-note {
+    font-size: 0.75rem;
+    text-align: center;
+    color: #aaa;
+    margin-top: auto;
+    padding-top: 10px;
+    user-select: none;
+  }
+  /* Scroll container for marketplace if content grows */
+  #marketplace {
+    flex-grow: 1;
+    overflow-y: auto;
+  }
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #7c61f7aa;
+    border-radius: 4px;
+  }
+  /* Responsive font size scaling */
+  @media (max-width: 360px) {
+    body {
+      font-size: 14px;
+    }
+    button {
+      font-size: 0.9rem;
+      padding: 6px 16px;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>NFT Marketplace with Auctions</h1>
+</header>
+
+<section class="section" id="mint-section" aria-labelledby="mint-title">
+  <h2 id="mint-title">Mint a New NFT</h2>
+  <form id="mint-form" aria-describedby="mint-desc" novalidate>
+    <label for="nft-name">NFT Name</label>
+    <input type="text" id="nft-name" name="nftName" placeholder="Cool NFT" required minlength="2" maxlength="30" />
+    <label for="nft-desc">Description</label>
+    <textarea id="nft-desc" name="nftDescription" rows="2" placeholder="Describe your NFT..." required minlength="5" maxlength="120"></textarea>
+    <label for="nft-image">Image URL (optional)</label>
+    <input type="url" id="nft-image" name="nftImage" placeholder="https://example.com/image.jpg" />
+    <button type="submit" id="mint-btn">Mint NFT</button>
+    <p id="mint-desc" style="font-size:0.8rem;color:#ccc;margin-top:0;">Create your own unique collectible NFT.</p>
+  </form>
+</section>
+
+<section class="section" id="marketplace" aria-labelledby="marketplace-title">
+  <h2 id="marketplace-title">Marketplace</h2>
+  <div class="nft-grid" id="nft-list"></div>
+</section>
+
+<footer class="footer-note">
+  Crafted by BLACKBOXAI - NFT Marketplace Demo - Auctions Enabled
+</footer>
+
+<script>
+  (() => {
+    const STORAGE_KEY = 'nftMarketplaceAuctionsData';
+
+    // Utility for formatting price display (e.g. ETH)
+    function formatPrice(value) {
+      return value.toFixed(3) + ' ETH';
+    }
+
+    // Generate unique ID
+    function generateId() {
+      return '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    // Auction timer constants (e.g. 2 minutes for demo)
+    const AUCTION_DURATION_MS = 2 * 60 * 1000;
+
+    // Current user simulation (in this demo all users are "You")
+    const currentUser = "You";
+
+    // Data model: an array of NFT objects
+    // NFT properties:
+    // { id, name, description, image, owner, forSale, price, forAuction, auctionEnd, highestBid, highestBidder }
+    let nftData = [];
+
+    // DOM Elements
+    const mintForm = document.getElementById('mint-form');
+    const nftList = document.getElementById('nft-list');
+    const mintBtn = document.getElementById('mint-btn');
+
+    // Load data from localStorage
+    function loadData() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        try {
+          nftData = JSON.parse(saved);
+        } catch {
+          nftData = [];
+        }
+      }
+    }
+
+    // Save data to localStorage
+    function saveData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nftData));
+    }
+
+    // Render NFTs in marketplace
+    function renderNFTs() {
+      nftList.innerHTML = '';
+      if(nftData.length === 0) {
+        nftList.innerHTML = '<p style="color:#aaa;text-align:center;width:100%;">No NFTs minted yet. Start by minting your unique NFT above!</p>';
+        return;
+      }
+      nftData.forEach(nft => {
+        const card = document.createElement('div');
+        card.className = 'nft-card';
+
+        // If auction active
+        let auctionActive = nft.forAuction && nft.auctionEnd && Date.now() < nft.auctionEnd;
+
+        let timerText = '';
+        if (nft.forAuction) {
+          if(auctionActive){
+            const remaining = nft.auctionEnd - Date.now();
+            const seconds = Math.ceil(remaining / 1000);
+            timerText = `Auction ends in ${seconds}s`;
+          } else if(nft.auctionEnd && Date.now() > nft.auctionEnd){
+            timerText = 'Auction ended';
+          } else {
+            timerText = 'Auction not started';
+          }
+        }
+        // NFT image or placeholder
+        const img = document.createElement('img');
+        img.src = nft.image || 'https://via.placeholder.com/300x300/4e3e9e/ddd?text=NFT+Image';
+        img.alt = nft.name;
+
+        // Title
+        const title = document.createElement('h3');
+        title.textContent = nft.name;
+
+        // Description
+        const desc = document.createElement('p');
+        desc.textContent = nft.description;
+
+        // Owner label
+        const ownerLabel = document.createElement('div');
+        ownerLabel.style.fontSize = '0.7rem';
+        ownerLabel.style.textAlign = 'center';
+        ownerLabel.style.color = '#ccc';
+        ownerLabel.style.marginBottom = '6px';
+        ownerLabel.textContent = 'Owner: ' + nft.owner;
+
+        // Badge for sale or auction
+        if(nft.forSale){
+          const badge = document.createElement('div');
+          badge.className = 'badge';
+          badge.textContent = 'For Sale';
+          card.appendChild(badge);
+        } else if(nft.forAuction){
+          const badge = document.createElement('div');
+          badge.className = 'badge';
+          badge.textContent = 'Auction';
+          card.appendChild(badge);
+        }
+
+        // Price or Highest Bid display
+        const priceLabel = document.createElement('div');
+        priceLabel.className = 'price';
+        if(nft.forSale) {
+          priceLabel.textContent = 'Price: ' + formatPrice(nft.price);
+        } else if(nft.forAuction){
+          if(nft.highestBid){
+            priceLabel.textContent = 'Highest Bid: ' + formatPrice(nft.highestBid) + ' by ' + nft.highestBidder;
+          } else {
+            priceLabel.textContent = 'Starting Bid: ' + (nft.price ? formatPrice(nft.price) : '0');
+          }
+        }
+
+        // Auction timer
+        const auctionTimer = document.createElement('div');
+        auctionTimer.className = 'auction-timer';
+        auctionTimer.textContent = timerText;
+
+        // Buttons and interaction container
+        const interaction = document.createElement('div');
+        interaction.style.width = '100%';
+
+        // Actions depending on state and ownership
+        if(nft.owner === currentUser) {
+          // Owner controls to put NFT on sale or auction or remove sale
+          if(!nft.forSale && !nft.forAuction){
+            // Buttons: Put for sale or start auction
+            const btnSale = document.createElement('button');
+            btnSale.textContent = 'Put for Sale';
+            btnSale.style.width = '48%';
+            btnSale.style.marginRight = '4%';
+            btnSale.onclick = () => promptSalePrice(nft.id);
+            interaction.appendChild(btnSale);
+
+            const btnAuction = document.createElement('button');
+            btnAuction.textContent = 'Start Auction';
+            btnAuction.style.width = '48%';
+            btnAuction.onclick = () => promptAuctionStart(nft.id);
+            interaction.appendChild(btnAuction);
+          } else if(nft.forSale) {
+            // Button to cancel sale
+            const btnCancelSale = document.createElement('button');
+            btnCancelSale.textContent = 'Cancel Sale';
+            btnCancelSale.style.width = '100%';
+            btnCancelSale.onclick = () => cancelSale(nft.id);
+            interaction.appendChild(btnCancelSale);
+          } else if(nft.forAuction){
+            if(nft.auctionEnd && Date.now() < nft.auctionEnd){
+              // Auction running, show info only
+              const info = document.createElement('div');
+              info.style.fontSize = '0.8rem';
+              info.style.color = '#ddd';
+              info.style.textAlign = 'center';
+              info.textContent = 'Auction in progress. Owner cannot bid.';
+              interaction.appendChild(info);
+            } else if(nft.auctionEnd && Date.now() > nft.auctionEnd){
+              // Auction ended, finalize
+              const btnFinalize = document.createElement('button');
+              btnFinalize.textContent = 'Finalize Auction';
+              btnFinalize.style.width = '100%';
+              btnFinalize.onclick = () => finalizeAuction(nft.id);
+              interaction.appendChild(btnFinalize);
+            }
+          }
+        } else {
+          // Not owner - user can buy or bid
+          if(nft.forSale){
+            const btnBuy = document.createElement('button');
+            btnBuy.textContent = 'Buy for ' + formatPrice(nft.price);
+            btnBuy.style.width = '100%';
+            btnBuy.onclick = () => buyNFT(nft.id);
+            interaction.appendChild(btnBuy);
+          } else if(nft.forAuction){
+            if(nft.auctionEnd && Date.now() > nft.auctionEnd){
+              // Auction ended, show message
+              const endedNote = document.createElement('div');
+              endedNote.textContent = 'Auction ended.';
+              endedNote.style.textAlign = 'center';
+              endedNote.style.color = '#666';
+              interaction.appendChild(endedNote);
+            } else {
+              // Show input for bid
+              const bidSection = document.createElement('div');
+              bidSection.className = 'bid-section';
+
+              const bidInput = document.createElement('input');
+              bidInput.type = 'number';
+              bidInput.min = nft.highestBid ? (nft.highestBid + 0.001).toFixed(3) : (nft.price || 0.001).toFixed(3);
+              bidInput.step = "0.001";
+              bidInput.placeholder = 'Your Bid';
+              bidInput.setAttribute('aria-label', 'Place your bid');
+
+              const btnBid = document.createElement('button');
+              btnBid.textContent = 'Place Bid';
+              btnBid.disabled = true;
+
+              bidInput.addEventListener('input', () => {
+                const val = parseFloat(bidInput.value);
+                const minBid = nft.highestBid ? nft.highestBid + 0.001 : (nft.price || 0.001);
+                if (!isNaN(val) && val >= minBid) {
+                  btnBid.disabled = false;
+                } else {
+                  btnBid.disabled = true;
+                }
+              });
+
+              btnBid.onclick = () => {
+                placeBid(nft.id, parseFloat(bidInput.value));
+                bidInput.value = '';
+                btnBid.disabled = true;
+              };
+
+              bidSection.appendChild(bidInput);
+              bidSection.appendChild(btnBid);
+              interaction.appendChild(bidSection);
+            }
+          }
+        }
+
+        card.appendChild(img);
+        card.appendChild(title);
+        card.appendChild(desc);
+        card.appendChild(ownerLabel);
+        if (nft.forAuction) {
+          card.appendChild(auctionTimer);
+        }
+        card.appendChild(priceLabel);
+        card.appendChild(interaction);
+
+        nftList.appendChild(card);
+      });
+    }
+
+    // Prompt user for sale price
+    function promptSalePrice(nftId) {
+      const priceStr = prompt('Enter sale price in ETH (min 0.001):');
+      if(priceStr === null) return; // cancelled
+      let price = parseFloat(priceStr);
+      if(isNaN(price) || price < 0.001) {
+        alert('Invalid price. Minimum 0.001 ETH.');
+        return;
+      }
+      putForSale(nftId, price);
+    }
+
+    // Prompt user to start auction with starting price
+    function promptAuctionStart(nftId) {
+      const priceStr = prompt('Enter starting bid price in ETH (min 0.001):');
+      if(priceStr === null) return; // cancelled
+      let price = parseFloat(priceStr);
+      if(isNaN(price) || price < 0.001) {
+        alert('Invalid starting bid. Minimum 0.001 ETH.');
+        return;
+      }
+      startAuction(nftId, price);
+    }
+
+    // Put NFT for direct sale
+    function putForSale(nftId, price) {
+      let nft = nftData.find(n => n.id === nftId);
+      if(!nft) return;
+      nft.forSale = true;
+      nft.price = price;
+      // Cancel auction if any
+      nft.forAuction = false;
+      nft.auctionEnd = null;
+      nft.highestBid = null;
+      nft.highestBidder = null;
+      saveData();
+      renderNFTs();
+      alert('NFT listed for sale.');
+    }
+
+    // Cancel sale
+    function cancelSale(nftId) {
+      let nft = nftData.find(n => n.id === nftId);
+      if(!nft) return;
+      nft.forSale = false;
+      nft.price = null;
+      saveData();
+      renderNFTs();
+    }
+
+    // Start auction
+    function startAuction(nftId, startingPrice) {
+      let nft = nftData.find(n => n.id === nftId);
+      if(!nft) return;
+      nft.forAuction = true;
+      nft.auctionEnd = Date.now() + AUCTION_DURATION_MS;
+      nft.price = startingPrice;
+      nft.highestBid = null;
+      nft.highestBidder = null;
+      nft.forSale = false;
+      saveData();
+      renderNFTs();
+      alert('Auction started! Bidding is live for 2 minutes.');
+    }
+
+    // Finalize auction (transfer ownership)
+    function finalizeAuction(nftId) {
+      let nft = nftData.find(n => n.id === nftId);
+      if(!nft) return;
+      if(!nft.forAuction) return;
+      if(Date.now() < nft.auctionEnd){
+        alert('Auction still running.');
+        return;
+      }
+      if(nft.highestBidder){
+        nft.owner = nft.highestBidder;
+        alert(`Auction ended! NFT sold to ${nft.highestBidder} for ${formatPrice(nft.highestBid)}.`);
+      } else {
+        alert('Auction ended with no bids. NFT remains with the owner.');
+      }
+      nft.forAuction = false;
+      nft.auctionEnd = null;
+      nft.price = null;
+      nft.highestBid = null;
+      nft.highestBidder = null;
+      saveData();
+      renderNFTs();
+    }
+
+    // Buying an NFT on sale
+    function buyNFT(nftId) {
+      let nft = nftData.find(n => n.id === nftId);
+      if(!nft || !nft.forSale) return;
+      if(nft.owner === currentUser){
+        alert('You already own this NFT.');
+        return;
+      }
+      // Simulate payment success
+      nft.owner = currentUser;
+      nft.forSale = false;
+      nft.price = null;
+      saveData();
+      renderNFTs();
+      alert(`You bought '${nft.name}' successfully!`);
+    }
+
+    // Place a bid on an NFT auction
+    function placeBid(nftId, bidAmount) {
+      const nft = nftData.find(n => n.id === nftId);
+      if(!nft || !nft.forAuction) return;
+      if(Date.now() > nft.auctionEnd){
+        alert('Auction already ended.');
+        return;
+      }
+      if(bidAmount <= (nft.highestBid || nft.price || 0)){
+        alert('Your bid must be higher than current highest bid.');
+        return;
+      }
+      if(currentUser === nft.owner){
+        alert('Owner cannot bid on their own NFT.');
+        return;
+      }
+      nft.highestBid = bidAmount;
+      nft.highestBidder = currentUser;
+      saveData();
+      renderNFTs();
+    }
+
+    // Handle mint form submission
+    mintForm.addEventListener('submit', e => {
+      e.preventDefault();
+      mintBtn.disabled = true;
+
+      const name = e.target.nftName.value.trim();
+      const desc = e.target.nftDescription.value.trim();
+      const img = e.target.nftImage.value.trim();
+
+      if(name.length < 2 || desc.length < 5){
+        alert('Please enter valid name and description.');
+        mintBtn.disabled = false;
+        return;
+      }
+
+      // Create new NFT object
+      const newNFT = {
+        id: generateId(),
+        name,
+        description: desc,
+        image: img || '',
+        owner: currentUser,
+        forSale: false,
+        price: null,
+        forAuction: false,
+        auctionEnd: null,
+        highestBid: null,
+        highestBidder: null
+      };
+      nftData.push(newNFT);
+      saveData();
+      renderNFTs();
+
+      // Reset form & re-enable button
+      mintForm.reset();
+      mintBtn.disabled = false;
+      alert('Your NFT has been minted!');
+    });
+
+    // Auction countdown updater
+    function auctionTick() {
+      let updated = false;
+      const now = Date.now();
+
+      nftData.forEach(nft => {
+        if(nft.forAuction && nft.auctionEnd && now > nft.auctionEnd){
+          updated = true; // re-render to show auction ended or finalize button for owner
+        }
+      });
+      if(updated){
+        renderNFTs();
+      }
+    }
+
+    // Initial load
+    loadData();
+    renderNFTs();
+
+    // Update auction timers every second
+    setInterval(() => {
+      renderNFTs();
+      auctionTick();
+    }, 1000);
+  })();
+</script>
+</body>
+</html>
+</content>
+</create_file>
